@@ -5,11 +5,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 
 public class Main {
-    // Твои данные. Замени текст в кавычках на свои!
     static String name = "Коротченя Вячеслав Романович";
     static String group = "477";
-
-    // Замени число 10 на свой номер в журнале
     static int number = 11;
     static double pi = 0;
 
@@ -27,10 +24,12 @@ public class Main {
         server.createContext("/", exchange -> {
             String response = "<h1>" + name + "</h1>" +
                     "<h2>" + group + "</h2>" +
-                    "<p>Число Пи: " + String.format("%." + journalNumber + "f", pi) + "</p>";
+                    "<p>Число Пи: " + String.format("%." + number + "f", pi) + "</p>";
 
             byte[] bytes = response.getBytes("UTF-8");
-            exchange.sendResponseHeaders(200, bytes.length());
+
+            exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+            exchange.sendResponseHeaders(200, bytes.length);
             OutputStream os = exchange.getResponseBody();
             os.write(bytes);
             os.close();
