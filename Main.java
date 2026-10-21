@@ -1,284 +1,167 @@
-import java.io.*;
-import java.nio.file.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.lang.management.ManagementFactory;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Collections;
+import java.util.Enumeration;
 
 public class Main {
+    static String fio = "Коротченя Вячеслав Романович";
+    static String gruppa = "477";
     static int variant = 11;
 
     public static void main(String[] args) {
-        System.out.println("вар " + variant);
-        zadanie1();
-        zadanie2();
-        zadanie3(args);
+        if (args.length > 0 && args[0].equals("1")) {
+            task1();
+        } else if (args.length > 0 && args[0].equals("2")) {
+            task2();
+        } else if (args.length > 0 && args[0].equals("3")) {
+            task3();
+        } else {
+            task1();
+            System.out.println("\n-----------------------------------\n");
+            task2();
+            System.out.println("\n-----------------------------------\n");
+            task3();
+        }
     }
 
-    static void zadanie1() {
-        System.out.println("\n1");
-        String imyaFaila = "student_" + variant + ".txt";
-        String segodnya = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String[] spisokKnig = {
-                "Проект конец света",
-                "Дентельмены",
-                "Адольф Гитлер Маинкампф",
-                "Роберт Киосаки Бедный папа Богатый папа",
-                "Инструкция к пылесосу"
-        };
+    static void task1() {
+        String osName = System.getProperty("os.name").toLowerCase();
+        String arch = System.getProperty("os.arch");
+        String version = System.getProperty("os.version");
+        String hostname = "unknown";
+        try {
+            hostname = InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {}
 
-        String tekst = "Коротченя Вячеслав Романович\n";
-        tekst = tekst + "группа: 477\n";
-        tekst = tekst + "вар: " + variant + "\n";
-        tekst = tekst + "дата: " + segodnya + "\n";
-        tekst = tekst + "любимые фильмы и игры:\n";
+        long uptimeMs = ManagementFactory.getRuntimeMXBean().getUptime();
+        long uptimeSec = uptimeMs / 1000;
+        long hours = uptimeSec / 3600;
+        long min = (uptimeSec % 3600) / 60;
+        long sec = uptimeSec % 60;
 
-        for (int i = 0; i < spisokKnig.length; i++) {
-            tekst = tekst + (i + 1) + ". " + spisokKnig[i] + "\n";
+        String platform = "linux";
+        if (osName.contains("win")) platform = "win32";
+        else if (osName.contains("mac")) platform = "darwin";
+
+        System.out.println("=== Информация о системе (группа " + gruppa + ") ===");
+        System.out.println("Платформа: " + platform);
+        System.out.println("Тип ОС: " + System.getProperty("os.name"));
+        System.out.println("Архитектура: " + arch);
+        System.out.println("Версия ОС: " + version);
+        System.out.println("Имя хоста: " + hostname);
+        System.out.println("Время работы: " + hours + " ч " + min + " мин " + sec + " сек");
+
+        if (osName.contains("win")) {
+            System.out.println("Вы работаете в Windows");
+        } else if (osName.contains("mac")) {
+            System.out.println("Вы работаете в macOS");
+        } else if (osName.contains("nix") || osName.contains("nux")) {
+            System.out.println("Вы работаете в Linux");
+        } else {
+            System.out.println("Неизвестная платформа");
         }
+    }
 
-        String[] strokiDlyaScheta = tekst.split("\n");
-        int kolvoZapis = strokiDlyaScheta.length;
-        tekst = tekst + "\nКол-во писей: " + kolvoZapis;
+    static void task2() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        String cpuModel = System.getenv("PROCESSOR_IDENTIFIER");
+        if (cpuModel == null) cpuModel = System.getProperty("os.arch") + " processor";
+
+        long physTotal = 0;
+        long physFree = 0;
+        double loadAvg = -1.0;
 
         try {
-            FileWriter fw = new FileWriter(imyaFaila);
-            fw.write(tekst);
-            fw.close();
-            System.out.println("файл: " + imyaFaila);
-
-            System.out.println("внутри:");
-            Scanner sc = new Scanner(new File(imyaFaila));
-            while (sc.hasNextLine()) {
-                System.out.println(sc.nextLine());
-            }
-            sc.close();
+            com.sun.management.OperatingSystemMXBean osBean =
+                    (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+            physTotal = osBean.getTotalPhysicalMemorySize() / (1024 * 1024 * 1024);
+            physFree = osBean.getFreePhysicalMemorySize() / (1024 * 1024 * 1024);
+            loadAvg = osBean.getSystemLoadAverage();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            physTotal = Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024);
+            physFree = Runtime.getRuntime().freeMemory() / (1024 * 1024 * 1024);
+        }
+
+        long used = physTotal - physFree;
+        double percent = physTotal > 0 ? (used * 100.0) / physTotal : 0;
+
+        System.out.println("=== Информация о процессоре ===");
+        System.out.println("Количество логических ядер: " + cores);
+        System.out.println("Модель процессора: " + cpuModel);
+        System.out.println("=== Информация о памяти ===");
+        System.out.println("Общий объём: " + physTotal + " ГБ");
+        System.out.println("Свободно: " + physFree + " ГБ");
+        System.out.println("Использовано: " + used + " ГБ (" + String.format("%.1f", percent) + "%)");
+        System.out.println("Группа: " + gruppa);
+
+        if (percent > 80) {
+            System.out.println("ВНИМАНИЕ: Мало свободной памяти!");
+        } else {
+            System.out.println("Память в норме");
+        }
+
+        if (loadAvg < 0) {
+            System.out.println("Средняя загрузка (1, 5, 15 мин): недоступно (Windows)");
+        } else {
+            System.out.println("Средняя загрузка (1, 5, 15 мин): " + String.format("%.2f", loadAvg));
         }
     }
 
-    static void zadanie2() {
-        System.out.println("\n2");
-        String papkaProekta = "project_" + variant;
+    static void task3() {
+        System.out.println("=== Сетевые интерфейсы ===");
+        int interfaceCount = 0;
+        String mainInterface = "";
 
         try {
-            String[] spsokPapok = {
-                    papkaProekta + "/src/modules",
-                    papkaProekta + "/src/components",
-                    papkaProekta + "/src/utils",
-                    papkaProekta + "/data/input",
-                    papkaProekta + "/data/output",
-                    papkaProekta + "/data/temp",
-                    papkaProekta + "/temp"
-            };
+            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+            for (NetworkInterface netint : Collections.list(nets)) {
+                if (netint.isUp() && !netint.isLoopback()) {
+                    interfaceCount++;
+                    System.out.println("Интерфейс: " + netint.getDisplayName());
 
-            if (variant % 2 != 0) {
-                String[] dopPapki = {
-                        papkaProekta + "/src/components/1",
-                        papkaProekta + "/src/components/2",
-                        papkaProekta + "/src/components/3"
-                };
-                String[] vsePapki = new String[spsokPapok.length + dopPapki.length];
-                for (int i = 0; i < spsokPapok.length; i++) {
-                    vsePapki[i] = spsokPapok[i];
-                }
-                for (int i = 0; i < dopPapki.length; i++) {
-                    vsePapki[spsokPapok.length + i] = dopPapki[i];
-                }
-                spsokPapok = vsePapki;
-            }
-
-            for (int i = 0; i < spsokPapok.length; i++) {
-                File dir = new File(spsokPapok[i]);
-                dir.mkdirs();
-                File info = new File(spsokPapok[i] + "/info.txt");
-                FileWriter fw = new FileWriter(info);
-                fw.write("папка " + dir.getName());
-                fw.close();
-            }
-            System.out.println("структура");
-
-            System.out.println("\nдерево:");
-            pokazatDerevo(new File(papkaProekta), "");
-
-            File starayaTemp = new File(papkaProekta + "/temp");
-            File novayaTemp = new File(papkaProekta + "/data/temp");
-            Files.move(starayaTemp.toPath(), novayaTemp.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            System.out.println(" ");
-
-            File starOut = new File(papkaProekta + "/data/output");
-            File newOut = new File(papkaProekta + "/data/results");
-            starOut.renameTo(newOut);
-            System.out.println(" ");
-
-            File tempDelete = new File(papkaProekta + "/data/temp");
-            udalitPapku(tempDelete);
-            System.out.println("data/temp udalena");
-
-            System.out.println("\nновое древо:");
-            pokazatDerevo(new File(papkaProekta), "");
-
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    static void pokazatDerevo(File papka, String otstup) {
-        try {
-            File[] vse = papka.listFiles();
-            if (vse == null) return;
-            Arrays.sort(vse);
-            for (int i = 0; i < vse.length; i++) {
-                File f = vse[i];
-                if (f.isDirectory()) {
-                    System.out.println(otstup + "[DIR] " + f.getName());
-                    pokazatDerevo(f, otstup + "  ");
-                } else {
-                    System.out.println(otstup + "      " + f.getName());
-                }
-            }
-        } catch (Exception e) {
-        }
-    }
-
-    static void udalitPapku(File papka) {
-        if (papka.isDirectory()) {
-            File[] vse = papka.listFiles();
-            if (vse != null) {
-                for (int i = 0; i < vse.length; i++) {
-                    udalitPapku(vse[i]);
-                }
-            }
-        }
-        papka.delete();
-    }
-
-    static int schetFailov = 0;
-    static int schetPapok = 0;
-    static long obshiyRazmer = 0;
-    static Map<String, List<String>> poRasshireniyam = new HashMap<>();
-    static Map<String, Long> razmeriFailov = new HashMap<>();
-
-    static boolean podhoditRasshirenie(String imya) {
-        String[] razresh = {".js", ".json", ".txt", ".md"};
-        String imyaNiz = imya.toLowerCase();
-        for (int i = 0; i < razresh.length; i++) {
-            if (imyaNiz.endsWith(razresh[i])) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    static void skanRekursivno(File papka) {
-        try {
-            File[] vse = papka.listFiles();
-            if (vse == null) return;
-            for (int i = 0; i < vse.length; i++) {
-                File f = vse[i];
-                if (f.isDirectory()) {
-                    schetPapok = schetPapok + 1;
-                    skanRekursivno(f);
-                } else {
-                    if (!podhoditRasshirenie(f.getName())) {
-                        continue;
+                    Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
+                    for (InetAddress inetAddress : Collections.list(inetAddresses)) {
+                        if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
+                            String ip = inetAddress.getHostAddress();
+                            System.out.println("IPv4: " + ip);
+                            if (mainInterface.isEmpty()) {
+                                mainInterface = netint.getDisplayName() + " (" + ip + ")";
+                            }
+                        }
                     }
-                    long razm = f.length();
-                    if (razm > 10 * 1024 * 1024) {
-                        continue;
+
+                    byte[] mac = netint.getHardwareAddress();
+                    if (mac != null) {
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < mac.length; i++) {
+                            sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? ":" : ""));
+                        }
+                        String macStr = sb.toString();
+                        String maskedMac = macStr.length() > 8 ? macStr.substring(0, 8) + "*:*:*" : macStr;
+                        System.out.println("MAC: " + maskedMac);
                     }
-                    schetFailov = schetFailov + 1;
-                    obshiyRazmer = obshiyRazmer + razm;
-                    String imya = f.getName();
-                    String rasshirenie = "нет реш";
-                    int tochka = imya.lastIndexOf(".");
-                    if (tochka != -1) {
-                        rasshirenie = imya.substring(tochka);
-                    }
-                    if (!poRasshireniyam.containsKey(rasshirenie)) {
-                        poRasshireniyam.put(rasshirenie, new ArrayList<>());
-                    }
-                    poRasshireniyam.get(rasshirenie).add(imya);
-                    razmeriFailov.put(f.getAbsolutePath(), razm);
                 }
             }
-        } catch (Exception e) {
-        }
-    }
+        } catch (Exception e) {}
 
-    static void zadanie3(String[] args) {
-        System.out.println("\n3");
-        String put = ".";
-        if (args.length > 0) {
-            put = args[0];
-        }
-        System.out.println("скан: " + put);
+        System.out.println("Всего интерфейсов: " + interfaceCount);
+        System.out.println("Основной интерфейс: " + (mainInterface.isEmpty() ? "не найден" : mainInterface));
 
-        File koren = new File(put);
-        skanRekursivno(koren);
+        System.out.println("=== Информация о пользователе ===");
+        System.out.println("Имя пользователя: " + System.getProperty("user.name"));
+        System.out.println("Домашняя директория: " + System.getProperty("user.home"));
+        System.out.println("Группа: " + gruppa);
 
-        System.out.println("папок: " + schetPapok);
-        System.out.println("файлов: " + schetFailov);
-
-        double kb = obshiyRazmer / 1024.0;
-        double mb = kb / 1024.0;
-        System.out.println("size: " + obshiyRazmer + " байт (" + String.format("%.2f", kb) + " KB, " + String.format("%.2f", mb) + " MB)");
-
-        System.out.println("\nрасширения:");
-        for (String rassh : poRasshireniyam.keySet()) {
-            List<String> spsok = poRasshireniyam.get(rassh);
-            System.out.println("  " + rassh + ": " + spsok.size() + " файлов");
-        }
-
-        List<Map.Entry<String, Long>> spsokRazmerov = new ArrayList<>(razmeriFailov.entrySet());
-        spsokRazmerov.sort(new Comparator<Map.Entry<String, Long>>() {
-            public int compare(Map.Entry<String, Long> a, Map.Entry<String, Long> b) {
-                return Long.compare(b.getValue(), a.getValue());
-            }
-        });
-
-        System.out.println("\nТОП 5 биг :");
-        int limit1 = 5;
-        if (spsokRazmerov.size() < 5) limit1 = spsokRazmerov.size();
-        for (int i = 0; i < limit1; i++) {
-            Map.Entry<String, Long> e = spsokRazmerov.get(i);
-            File ff = new File(e.getKey());
-            System.out.println("  " + (i + 1) + ". " + ff.getName() + " (" + e.getValue() + " байт)");
-        }
-
-        System.out.println("\nТОП 5 мал:");
-        int limit2 = 5;
-        if (spsokRazmerov.size() < 5) limit2 = spsokRazmerov.size();
-        for (int i = 0; i < limit2; i++) {
-            Map.Entry<String, Long> e = spsokRazmerov.get(spsokRazmerov.size() - 1 - i);
-            File ff = new File(e.getKey());
-            System.out.println("  " + (i + 1) + ". " + ff.getName() + " (" + e.getValue() + " байт)");
-        }
-
-        try {
-            FileWriter rep = new FileWriter("report_" + variant + ".json");
-            rep.write("{\n");
-            rep.write("  \"вариант\": " + variant + ",\n");
-            rep.write("  \"папок\": " + schetPapok + ",\n");
-            rep.write("  \"мамок\": " + schetFailov + ",\n");
-            rep.write("  \"size байт\": " + obshiyRazmer + ",\n");
-            rep.write("  \"расширения\": {\n");
-            int count = 0;
-            for (String rassh : poRasshireniyam.keySet()) {
-                count++;
-                int kolvo = poRasshireniyam.get(rassh).size();
-                rep.write("    \"" + rassh + "\": " + kolvo);
-                if (count < poRasshireniyam.size()) {
-                    rep.write(",");
-                }
-                rep.write("\n");
-            }
-            rep.write("  }\n");
-            rep.write("}\n");
-            rep.close();
-            System.out.println("\nотчет: report_" + variant + ".json");
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        String osName = System.getProperty("os.name").toLowerCase();
+        if (osName.contains("win")) {
+            System.out.println("UID/GID: недоступно в Windows");
+            System.out.println("Оболочка: cmd.exe");
+            System.out.println("Проверка root: нет (Windows)");
+        } else {
+            System.out.println("UID: " + System.getProperty("user.name").hashCode());
+            System.out.println("Оболочка: " + System.getenv("SHELL"));
+            System.out.println("Проверка root: " + (System.getProperty("user.name").equals("root") ? "да" : "нет"));
         }
     }
 }
