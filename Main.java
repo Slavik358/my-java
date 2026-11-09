@@ -1,167 +1,174 @@
-import java.lang.management.ManagementFactory;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Collections;
-import java.util.Enumeration;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class Main {
     static String fio = "Коротченя Вячеслав Романович";
     static String gruppa = "477";
     static int variant = 11;
+    static long MAX_BODY_SIZE = 1048576;
 
-    public static void main(String[] args) {
-        if (args.length > 0 && args[0].equals("1")) {
-            task1();
-        } else if (args.length > 0 && args[0].equals("2")) {
-            task2();
-        } else if (args.length > 0 && args[0].equals("3")) {
-            task3();
-        } else {
-            task1();
-            System.out.println("\n-----------------------------------\n");
-            task2();
-            System.out.println("\n-----------------------------------\n");
-            task3();
+    public static void main(String[] args) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(3000), 0);
+        server.createContext("/", new Task1Handler());
+        server.createContext("/headers", new Task2Handler());
+        server.createContext("/echo", new Task3Handler());
+        server.createContext("/form", new Task3Handler());
+        server.setExecutor(null);
+        server.start();
+        System.out.println("Server zapushen na portu 3000");
+    }
+
+    static void logRequest(HttpExchange ex, int status) {
+        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        System.out.println("[" + time + "] " + ex.getRequestMethod() + " " + ex.getRequestURI().getPath() + " " + status);
+    }
+
+    static void sendResponse(HttpExchange ex, int code, String type, String body) throws IOException {
+        byte[] baiti = body.getBytes("UTF-8");
+        ex.getResponseHeaders().set("Content-Type", type + "; charset=UTF-8");
+        ex.getResponseHeaders().set("X-Group", gruppa);
+        ex.sendResponseHeaders(code, baiti.length);
+        OutputStream os = ex.getResponseBody();
+        os.write(baiti);
+        os.close();
+    }
+
+    static class Task1Handler implements HttpHandler {
+        public void handle(HttpExchange ex) throws IOException {
+            String path = ex.getRequestURI().getPath();
+            int status = 200;
+            String html = "";
+
+            if (path.equals("/")) {
+                html = "<h1>Лабораторная работа №20</h1><p>Группа: " + gruppa + "</p><p>Метод: " + ex.getRequestMethod() + "</p><p>URL: " + path + "</p>";
+            } else if (path.equals("/about")) {
+                html = "<h1>О студенте</h1><p>Группа: " + gruppa + "</p><p>Студент: " + fio + "</p>";
+            } else {
+                status = 404;
+                html = "<h1>404 Not Found</h1><p>Путь " + path + " не найден</p>";
+            }
+            sendResponse(ex, status, "text/html", html);
+            logRequest(ex, status);
         }
     }
 
-    static void task1() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        String arch = System.getProperty("os.arch");
-        String version = System.getProperty("os.version");
-        String hostname = "unknown";
-        try {
-            hostname = InetAddress.getLocalHost().getHostName();
-        } catch (Exception e) {}
+    static class Task2Handler implements HttpHandler {
+        public void handle(HttpExchange ex) throws IOException {
+            String path = ex.getRequestURI().getPath();
+            int status = 200;
+            String response = "";
 
-        long uptimeMs = ManagementFactory.getRuntimeMXBean().getUptime();
-        long uptimeSec = uptimeMs / 1000;
-        long hours = uptimeSec / 3600;
-        long min = (uptimeSec % 3600) / 60;
-        long sec = uptimeSec % 60;
-
-        String platform = "linux";
-        if (osName.contains("win")) platform = "win32";
-        else if (osName.contains("mac")) platform = "darwin";
-
-        System.out.println("=== Информация о системе (группа " + gruppa + ") ===");
-        System.out.println("Платформа: " + platform);
-        System.out.println("Тип ОС: " + System.getProperty("os.name"));
-        System.out.println("Архитектура: " + arch);
-        System.out.println("Версия ОС: " + version);
-        System.out.println("Имя хоста: " + hostname);
-        System.out.println("Время работы: " + hours + " ч " + min + " мин " + sec + " сек");
-
-        if (osName.contains("win")) {
-            System.out.println("Вы работаете в Windows");
-        } else if (osName.contains("mac")) {
-            System.out.println("Вы работаете в macOS");
-        } else if (osName.contains("nix") || osName.contains("nux")) {
-            System.out.println("Вы работаете в Linux");
-        } else {
-            System.out.println("Неизвестная платформа");
+            if (path.equals("/headers")) {
+                Map<String, Object> data = new HashMap<>();
+                data.put("method", ex.getRequestMethod());
+                data.put("url", ex.getRequestURI().toString());
+                data.put("httpVersion", ex.getProtocol());
+                Map<String, String> heads = new HashMap<>();
+                for (Map.Entry<String, List<String>> entry : ex.getRequestHeaders().entrySet()) {
+                    heads.put(entry.getKey().toLowerCase(), entry.getValue().get(0));
+                }
+                data.put("headers", heads);
+                response = mapaVJson(data);
+            } else if (path.equals("/headers/set")) {
+                ex.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+                ex.getResponseHeaders().set("X-Powered-By", "Java");
+                ex.getResponseHeaders().set("X-Group", gruppa);
+                ex.getResponseHeaders().set("Cache-Control", "no-cache");
+                ex.sendResponseHeaders(200, 0);
+                ex.getResponseBody().close();
+                logRequest(ex, 200);
+                return;
+            } else if (path.equals("/headers/check")) {
+                Map<String, Boolean> checks = new HashMap<>();
+                checks.put("hasContentType", ex.getRequestHeaders().containsKey("Content-Type"));
+                checks.put("hasXGroup", ex.getRequestHeaders().containsKey("X-Group"));
+                checks.put("hasUnknown", ex.getRequestHeaders().containsKey("X-Unknown"));
+                response = mapaVJson(checks);
+            }
+            sendResponse(ex, status, "application/json", response);
+            logRequest(ex, status);
         }
     }
 
-    static void task2() {
-        int cores = Runtime.getRuntime().availableProcessors();
-        String cpuModel = System.getenv("PROCESSOR_IDENTIFIER");
-        if (cpuModel == null) cpuModel = System.getProperty("os.arch") + " processor";
+    static class Task3Handler implements HttpHandler {
+        public void handle(HttpExchange ex) throws IOException {
+            String path = ex.getRequestURI().getPath();
+            int status = 200;
+            String response = "";
 
-        long physTotal = 0;
-        long physFree = 0;
-        double loadAvg = -1.0;
+            if (ex.getRequestMethod().equals("POST")) {
+                InputStream is = ex.getRequestBody();
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                int nRead;
+                byte[] data = new byte[1024];
+                long totalRead = 0;
 
-        try {
-            com.sun.management.OperatingSystemMXBean osBean =
-                    (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-            physTotal = osBean.getTotalPhysicalMemorySize() / (1024 * 1024 * 1024);
-            physFree = osBean.getFreePhysicalMemorySize() / (1024 * 1024 * 1024);
-            loadAvg = osBean.getSystemLoadAverage();
-        } catch (Exception e) {
-            physTotal = Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024);
-            physFree = Runtime.getRuntime().freeMemory() / (1024 * 1024 * 1024);
-        }
+                while ((nRead = is.read(data, 0, data.length)) != -1) {
+                    totalRead += nRead;
+                    if (totalRead > MAX_BODY_SIZE) {
+                        status = 413;
+                        response = "{\"error\":\"Payload Too Large\"}";
+                        break;
+                    }
+                    buffer.write(data, 0, nRead);
+                }
+                is.close();
 
-        long used = physTotal - physFree;
-        double percent = physTotal > 0 ? (used * 100.0) / physTotal : 0;
+                if (status != 413) {
+                    String telo = buffer.toString("UTF-8");
+                    String contentType = ex.getRequestHeaders().getFirst("Content-Type");
 
-        System.out.println("=== Информация о процессоре ===");
-        System.out.println("Количество логических ядер: " + cores);
-        System.out.println("Модель процессора: " + cpuModel);
-        System.out.println("=== Информация о памяти ===");
-        System.out.println("Общий объём: " + physTotal + " ГБ");
-        System.out.println("Свободно: " + physFree + " ГБ");
-        System.out.println("Использовано: " + used + " ГБ (" + String.format("%.1f", percent) + "%)");
-        System.out.println("Группа: " + gruppa);
-
-        if (percent > 80) {
-            System.out.println("ВНИМАНИЕ: Мало свободной памяти!");
-        } else {
-            System.out.println("Память в норме");
-        }
-
-        if (loadAvg < 0) {
-            System.out.println("Средняя загрузка (1, 5, 15 мин): недоступно (Windows)");
-        } else {
-            System.out.println("Средняя загрузка (1, 5, 15 мин): " + String.format("%.2f", loadAvg));
-        }
-    }
-
-    static void task3() {
-        System.out.println("=== Сетевые интерфейсы ===");
-        int interfaceCount = 0;
-        String mainInterface = "";
-
-        try {
-            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-            for (NetworkInterface netint : Collections.list(nets)) {
-                if (netint.isUp() && !netint.isLoopback()) {
-                    interfaceCount++;
-                    System.out.println("Интерфейс: " + netint.getDisplayName());
-
-                    Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
-                    for (InetAddress inetAddress : Collections.list(inetAddresses)) {
-                        if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
-                            String ip = inetAddress.getHostAddress();
-                            System.out.println("IPv4: " + ip);
-                            if (mainInterface.isEmpty()) {
-                                mainInterface = netint.getDisplayName() + " (" + ip + ")";
+                    if (path.equals("/echo")) {
+                        if (contentType != null && contentType.contains("application/json")) {
+                            telo = telo.replaceFirst("\\}$", ", \"group\":\"" + gruppa + "\"}");
+                        }
+                        response = telo;
+                    } else if (path.equals("/form")) {
+                        Map<String, String> formData = new HashMap<>();
+                        String[] pairs = telo.split("&");
+                        for (String pair : pairs) {
+                            String[] kv = pair.split("=", 2);
+                            if (kv.length == 2) {
+                                formData.put(kv[0], kv[1]);
                             }
                         }
-                    }
-
-                    byte[] mac = netint.getHardwareAddress();
-                    if (mac != null) {
-                        StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < mac.length; i++) {
-                            sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? ":" : ""));
-                        }
-                        String macStr = sb.toString();
-                        String maskedMac = macStr.length() > 8 ? macStr.substring(0, 8) + "*:*:*" : macStr;
-                        System.out.println("MAC: " + maskedMac);
+                        response = mapaVJson(formData);
                     }
                 }
+            } else {
+                status = 405;
+                response = "{\"error\":\"Method Not Allowed\"}";
             }
-        } catch (Exception e) {}
-
-        System.out.println("Всего интерфейсов: " + interfaceCount);
-        System.out.println("Основной интерфейс: " + (mainInterface.isEmpty() ? "не найден" : mainInterface));
-
-        System.out.println("=== Информация о пользователе ===");
-        System.out.println("Имя пользователя: " + System.getProperty("user.name"));
-        System.out.println("Домашняя директория: " + System.getProperty("user.home"));
-        System.out.println("Группа: " + gruppa);
-
-        String osName = System.getProperty("os.name").toLowerCase();
-        if (osName.contains("win")) {
-            System.out.println("UID/GID: недоступно в Windows");
-            System.out.println("Оболочка: cmd.exe");
-            System.out.println("Проверка root: нет (Windows)");
-        } else {
-            System.out.println("UID: " + System.getProperty("user.name").hashCode());
-            System.out.println("Оболочка: " + System.getenv("SHELL"));
-            System.out.println("Проверка root: " + (System.getProperty("user.name").equals("root") ? "да" : "нет"));
+            sendResponse(ex, status, "application/json", response);
+            logRequest(ex, status);
         }
+    }
+
+    static String mapaVJson(Map<String, ?> mapa) {
+        StringBuilder sb = new StringBuilder("{");
+        int count = 0;
+        for (Map.Entry<String, ?> entry : mapa.entrySet()) {
+            if (count > 0) sb.append(",");
+            sb.append("\"").append(entry.getKey()).append("\":");
+            Object val = entry.getValue();
+            if (val instanceof String) {
+                sb.append("\"").append(val).append("\"");
+            } else if (val instanceof Map) {
+                sb.append(mapaVJson((Map<String, ?>) val));
+            } else if (val instanceof Boolean) {
+                sb.append(val);
+            } else {
+                sb.append("\"").append(val).append("\"");
+            }
+            count++;
+        }
+        sb.append("}");
+        return sb.toString();
     }
 }
