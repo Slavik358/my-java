@@ -1,15 +1,10 @@
-import java.lang.management.ManagementFactory;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.util.Collections;
-import java.util.Enumeration;
+import java.io.*;
 
 public class Main {
     static String fio = "Коротченя Вячеслав Романович";
     static String gruppa = "477";
-    static int variant = 11;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         if (args.length > 0 && args[0].equals("1")) {
             task1();
         } else if (args.length > 0 && args[0].equals("2")) {
@@ -25,143 +20,127 @@ public class Main {
         }
     }
 
-    static void task1() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        String arch = System.getProperty("os.arch");
-        String version = System.getProperty("os.version");
-        String hostname = "unknown";
-        try {
-            hostname = InetAddress.getLocalHost().getHostName();
-        } catch (Exception e) {}
+    static void task1() throws Exception {
+        System.out.println("Demonstratsiya Readable-potoka");
+        InputStream is = new InputStream() {
+            String[] chanki = {
+                    "Gruppa: " + gruppa + "\n",
+                    "Student: " + fio + "\n",
+                    "Laboratornaya rabota: №21\n",
+                    "Tema: Potoki v Java\n"
+            };
+            int tekushiy = 0;
 
-        long uptimeMs = ManagementFactory.getRuntimeMXBean().getUptime();
-        long uptimeSec = uptimeMs / 1000;
-        long hours = uptimeSec / 3600;
-        long min = (uptimeSec % 3600) / 60;
-        long sec = uptimeSec % 60;
+            public int read() {
+                return -1;
+            }
 
-        String platform = "linux";
-        if (osName.contains("win")) platform = "win32";
-        else if (osName.contains("mac")) platform = "darwin";
+            public int read(byte[] b, int off, int len) {
+                if (tekushiy >= chanki.length) return -1;
+                byte[] data = chanki[tekushiy].getBytes();
+                System.arraycopy(data, 0, b, off, Math.min(len, data.length));
+                tekushiy++;
+                return data.length;
+            }
+        };
 
-        System.out.println("=== Информация о системе (группа " + gruppa + ") ===");
-        System.out.println("Платформа: " + platform);
-        System.out.println("Тип ОС: " + System.getProperty("os.name"));
-        System.out.println("Архитектура: " + arch);
-        System.out.println("Версия ОС: " + version);
-        System.out.println("Имя хоста: " + hostname);
-        System.out.println("Время работы: " + hours + " ч " + min + " мин " + sec + " сек");
+        byte[] buffer = new byte[1024];
+        int chankCount = 0;
+        int totalSize = 0;
+        int bytesRead;
 
-        if (osName.contains("win")) {
-            System.out.println("Вы работаете в Windows");
-        } else if (osName.contains("mac")) {
-            System.out.println("Вы работаете в macOS");
-        } else if (osName.contains("nix") || osName.contains("nux")) {
-            System.out.println("Вы работаете в Linux");
-        } else {
-            System.out.println("Неизвестная платформа");
+        while ((bytesRead = is.read(buffer)) != -1) {
+            chankCount++;
+            totalSize += bytesRead;
+            System.out.println("[CHUNK " + chankCount + "] " + new String(buffer, 0, bytesRead).trim());
         }
+        System.out.println("[END] Potok zavershёn");
+        System.out.println("Vsego polucheno chankov: " + chankCount);
+        System.out.println("Obshiy razmer dannyh: " + totalSize + " bayt");
     }
 
-    static void task2() {
-        int cores = Runtime.getRuntime().availableProcessors();
-        String cpuModel = System.getenv("PROCESSOR_IDENTIFIER");
-        if (cpuModel == null) cpuModel = System.getProperty("os.arch") + " processor";
+    static void task2() throws Exception {
+        System.out.println("Demonstratsiya Writable-potoka");
+        OutputStream os = new OutputStream() {
+            int count = 0;
 
-        long physTotal = 0;
-        long physFree = 0;
-        double loadAvg = -1.0;
+            public void write(int b) {
+            }
 
-        try {
-            com.sun.management.OperatingSystemMXBean osBean =
-                    (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-            physTotal = osBean.getTotalPhysicalMemorySize() / (1024 * 1024 * 1024);
-            physFree = osBean.getFreePhysicalMemorySize() / (1024 * 1024 * 1024);
-            loadAvg = osBean.getSystemLoadAverage();
-        } catch (Exception e) {
-            physTotal = Runtime.getRuntime().maxMemory() / (1024 * 1024 * 1024);
-            physFree = Runtime.getRuntime().freeMemory() / (1024 * 1024 * 1024);
-        }
-
-        long used = physTotal - physFree;
-        double percent = physTotal > 0 ? (used * 100.0) / physTotal : 0;
-
-        System.out.println("=== Информация о процессоре ===");
-        System.out.println("Количество логических ядер: " + cores);
-        System.out.println("Модель процессора: " + cpuModel);
-        System.out.println("=== Информация о памяти ===");
-        System.out.println("Общий объём: " + physTotal + " ГБ");
-        System.out.println("Свободно: " + physFree + " ГБ");
-        System.out.println("Использовано: " + used + " ГБ (" + String.format("%.1f", percent) + "%)");
-        System.out.println("Группа: " + gruppa);
-
-        if (percent > 80) {
-            System.out.println("ВНИМАНИЕ: Мало свободной памяти!");
-        } else {
-            System.out.println("Память в норме");
-        }
-
-        if (loadAvg < 0) {
-            System.out.println("Средняя загрузка (1, 5, 15 мин): недоступно (Windows)");
-        } else {
-            System.out.println("Средняя загрузка (1, 5, 15 мин): " + String.format("%.2f", loadAvg));
-        }
-    }
-
-    static void task3() {
-        System.out.println("=== Сетевые интерфейсы ===");
-        int interfaceCount = 0;
-        String mainInterface = "";
-
-        try {
-            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-            for (NetworkInterface netint : Collections.list(nets)) {
-                if (netint.isUp() && !netint.isLoopback()) {
-                    interfaceCount++;
-                    System.out.println("Интерфейс: " + netint.getDisplayName());
-
-                    Enumeration<InetAddress> inetAddresses = netint.getInetAddresses();
-                    for (InetAddress inetAddress : Collections.list(inetAddresses)) {
-                        if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
-                            String ip = inetAddress.getHostAddress();
-                            System.out.println("IPv4: " + ip);
-                            if (mainInterface.isEmpty()) {
-                                mainInterface = netint.getDisplayName() + " (" + ip + ")";
-                            }
-                        }
-                    }
-
-                    byte[] mac = netint.getHardwareAddress();
-                    if (mac != null) {
-                        StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < mac.length; i++) {
-                            sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? ":" : ""));
-                        }
-                        String macStr = sb.toString();
-                        String maskedMac = macStr.length() > 8 ? macStr.substring(0, 8) + "*:*:*" : macStr;
-                        System.out.println("MAC: " + maskedMac);
-                    }
+            public void write(byte[] b, int off, int len) {
+                count++;
+                String txt = new String(b, off, len).trim();
+                System.out.println("[WRITE] " + txt);
+                if (count == 3) {
+                    System.out.println("  write() vernul: false ← bufer perapolnen!");
+                    System.out.println("  [DRAIN] Bufer osvobozhdyon, prodolzhaem zapis'");
+                } else {
+                    System.out.println("  write() vernul: true");
                 }
             }
-        } catch (Exception e) {}
 
-        System.out.println("Всего интерфейсов: " + interfaceCount);
-        System.out.println("Основной интерфейс: " + (mainInterface.isEmpty() ? "не найден" : mainInterface));
+            public void close() {
+                System.out.println("[FINISH] Vse dannye zapisany");
+                System.out.println("Vsego zapisano: " + count + " chanka");
+            }
+        };
 
-        System.out.println("=== Информация о пользователе ===");
-        System.out.println("Имя пользователя: " + System.getProperty("user.name"));
-        System.out.println("Домашняя директория: " + System.getProperty("user.home"));
-        System.out.println("Группа: " + gruppa);
+        String[] testData = {
+                "Gruppa: " + gruppa,
+                "Student: " + fio,
+                "Laboratornaya rabota: №21",
+                "Tema: Potoki v Java"
+        };
 
-        String osName = System.getProperty("os.name").toLowerCase();
-        if (osName.contains("win")) {
-            System.out.println("UID/GID: недоступно в Windows");
-            System.out.println("Оболочка: cmd.exe");
-            System.out.println("Проверка root: нет (Windows)");
-        } else {
-            System.out.println("UID: " + System.getProperty("user.name").hashCode());
-            System.out.println("Оболочка: " + System.getenv("SHELL"));
-            System.out.println("Проверка root: " + (System.getProperty("user.name").equals("root") ? "да" : "нет"));
+        for (String s : testData) {
+            os.write(s.getBytes());
+        }
+        os.close();
+    }
+
+    static void task3() throws Exception {
+        System.out.println("Demonstratsiya pipe() i pipeline()");
+
+        System.out.println("\nUspechniy pipe()");
+        InputStream goodIn = new ByteArrayInputStream("Vhodnye dannye dlya kopirovaniya".getBytes());
+        ByteArrayOutputStream goodOut = new ByteArrayOutputStream();
+
+        byte[] buf = new byte[1024];
+        int n;
+        while ((n = goodIn.read(buf)) != -1) {
+            goodOut.write(buf, 0, n);
+        }
+        goodIn.close();
+        goodOut.close();
+
+        System.out.println("Chtenie: memory");
+        System.out.println("Zapis': memory");
+        System.out.println("Kopirovanie zaversheno. Razmer: " + goodOut.size() + " bayt");
+
+        System.out.println("\npipe() s oshibkoy");
+        try {
+            InputStream badIn = new FileInputStream("missing_file.txt");
+            System.out.println("Chtenie: missing_file.txt");
+            ByteArrayOutputStream badOut = new ByteArrayOutputStream();
+            while ((n = badIn.read(buf)) != -1) {
+                badOut.write(buf, 0, n);
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("Oshibka: " + e.getMessage());
+            System.out.println("Vnimanie: pipe() ne zakryl tselevoy potok avtomaticheski!");
+        }
+
+        System.out.println("\npipeline() s oshibkoy (bezopasno)");
+        try (InputStream pipeIn = new FileInputStream("missing_file.txt")) {
+            System.out.println("Chtenie: missing_file.txt");
+            ByteArrayOutputStream pipeOut = new ByteArrayOutputStream();
+            while ((n = pipeIn.read(buf)) != -1) {
+                pipeOut.write(buf, 0, n);
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("Oshibka: " + e.getMessage());
+            System.out.println("Vse potoki avtomaticheski zakryty (try-with-resources)");
+            System.out.println("Utechek net");
         }
     }
 }
