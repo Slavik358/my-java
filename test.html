@@ -2,40 +2,34 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Тестер Лабораторной 20</title>
+    <title>Помощник для ЛР 21 (Streams)</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f9; }
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-top: 30px; }
         .btn { padding: 10px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; transition: opacity 0.2s; width: 100%; text-align: left; }
         .btn:hover { opacity: 0.8; }
-        .btn-get { background: #28a745; }
-        .btn-post { background: #007bff; }
-        .btn-error { background: #dc3545; }
+        .btn-cmd { background: #28a745; font-family: monospace; }
         #output { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; margin-top: 20px; white-space: pre-wrap; font-family: monospace; border: 1px solid #333; min-height: 60px; }
         .hint { font-size: 0.9em; color: #666; margin-top: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🛠️ Тестер API (Лабораторная 20)</h1>
-        <p>Нажми на кнопку, чтобы скопировать команду curl. Вставь её в Git Bash и сделай скриншот для отчета.</p>
+        <h1>🛠️ Помощник для скриншотов ЛР 21</h1>
+        <p>Нажми на кнопку, чтобы скопировать команду. Вставь её в Git Bash и сделай скриншот для отчета.</p>
 
-        <h2>Задание 1: Базовый сервер</h2>
-        <button class="btn btn-get" onclick="copyCmd('curl http://localhost:3000/')">curl http://localhost:3000/ <span class="hint">(Скриншот: главная страница)</span></button>
-        <button class="btn btn-get" onclick="copyCmd('curl http://localhost:3000/about')">curl http://localhost:3000/about <span class="hint">(Скриншот: страница about)</span></button>
-        <button class="btn btn-error" onclick="copyCmd('curl http://localhost:3000/unknown')">curl http://localhost:3000/unknown <span class="hint">(Скриншот: ошибка 404)</span></button>
+        <h2>Задание 1: Readable-поток</h2>
+        <button class="btn btn-cmd" onclick="copyCmd('java Main 1')">java Main 1 <span class="hint">(Скриншот: чтение чанков, событие end, размер данных)</span></button>
 
-        <h2>Задание 2: Работа с заголовками</h2>
-        <button class="btn btn-get" onclick="copyCmd('curl http://localhost:3000/headers')">curl http://localhost:3000/headers <span class="hint">(Скриншот: все заголовки запроса)</span></button>
-        <button class="btn btn-get" onclick="copyCmd('curl -I http://localhost:3000/headers/set')">curl -I http://localhost:3000/headers/set <span class="hint">(Скриншот: установленные заголовки ответа)</span></button>
-        <button class="btn btn-get" onclick="copyCmd('curl http://localhost:3000/headers/check')">curl http://localhost:3000/headers/check <span class="hint">(Скриншот: проверка наличия заголовков)</span></button>
+        <h2>Задание 2: Writable-поток и backpressure</h2>
+        <button class="btn btn-cmd" onclick="copyCmd('java Main 2')">java Main 2 <span class="hint">(Скриншот: запись данных, возврат false, событие drain и finish)</span></button>
 
-        <h2>Задание 3: Чтение тела запроса (POST)</h2>
-        <button class="btn btn-post" onclick="copyCmd('curl -X POST http://localhost:3000/echo -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;message&quot;:&quot;Hello&quot;}&apos;')">curl -X POST ... /echo (JSON) <span class="hint">(Скриншот: эхо JSON с добавленной группой)</span></button>
-        <button class="btn btn-post" onclick="copyCmd('curl -X POST http://localhost:3000/echo -H &quot;Content-Type: text/plain&quot; -d &apos;Hello, world!&apos;')">curl -X POST ... /echo (Text) <span class="hint">(Скриншот: эхо простого текста)</span></button>
-        <button class="btn btn-post" onclick="copyCmd('curl -X POST http://localhost:3000/form -d &quot;name=Ivan&amp;group=477&quot;')">curl -X POST ... /form <span class="hint">(Скриншот: парсинг form-data)</span></button>
-        <button class="btn btn-error" onclick="copyCmd('curl -X POST http://localhost:3000/echo -H &quot;Content-Type: application/json&quot; -d &apos;{&quot;data&quot;:&quot;' + 'A'.repeat(1048577) + '&quot;}&apos;')">curl -X POST ... /echo (Large) <span class="hint">(Скриншот: ошибка 413 Payload Too Large)</span></button>
+        <h2>Задание 3: pipe() и pipeline()</h2>
+        <button class="btn btn-cmd" onclick="copyCmd('java Main 3')">java Main 3 <span class="hint">(Скриншот: успешный pipe, pipe с ошибкой, безопасный pipeline)</span></button>
+
+        <h2>Полный вывод (все задания сразу)</h2>
+        <button class="btn btn-cmd" onclick="copyCmd('java Main')">java Main <span class="hint">(Скриншот: полный вывод всей программы)</span></button>
 
         <h2>📟 Скопированная команда:</h2>
         <div id="output">Нажми на любую кнопку выше, чтобы скопировать команду...</div>
@@ -44,7 +38,7 @@
     <script>
         function copyCmd(cmd) {
             navigator.clipboard.writeText(cmd).then(() => {
-                document.getElementById('output').textContent = `✅ Скопировано:\n${cmd}\n\nВставь это в Git Bash (Ctrl+Shift+V) и сделай скриншот!`;
+                document.getElementById('output').textContent = `✅ Скопировано: ${cmd}\n\nТеперь вставь это в Git Bash (Ctrl+Shift+V) и сделай скриншот!`;
             });
         }
     </script>
