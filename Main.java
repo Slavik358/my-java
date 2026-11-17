@@ -83,7 +83,7 @@ public class Main {
                 Statement st = c.createStatement();
                 ResultSet rs = st.executeQuery("SELECT @@VERSION, DB_NAME(), SUSER_SNAME()");
                 rs.next();
-                String otvet = "{\"status\":\"ok\",\"version\":\"" + ekranirovat(rs.getString(1).substring(0, 30)) + "\",\"db\":\"" + ekranirovat(rs.getString(2)) + "\",\"user\":\"" + ekranirovat(rs.getString(3)) + "\",\"msg\":\"Soedinenie zakryto\"}";
+
                 c.close();
                 sendJson(ex, 200, otvet);
             } catch (Exception e) {
@@ -99,7 +99,7 @@ public class Main {
                 Statement st = c.createStatement();
                 ResultSet rs = st.executeQuery("SELECT @@VERSION, DB_NAME()");
                 rs.next();
-                String otvet = "{\"status\":\"ok\",\"version\":\"" + ekranirovat(rs.getString(1).substring(0, 30)) + "\",\"db\":\"" + ekranirovat(rs.getString(2)) + "\",\"pool_size\":" + (pool.razmer() + 1) + ",\"msg\":\"Pul gotov\"}";
+
                 pool.osvobodit(c);
                 sendJson(ex, 200, otvet);
             } catch (Exception e) {
@@ -113,7 +113,7 @@ public class Main {
             try {
                 DriverManager.getConnection("jdbc:sqlserver://localhost:1433;databaseName=bad_db;encrypt=false;", "student", "nepravilniy_parol");
             } catch (SQLException e) {
-                sendJson(ex, 401, "{\"status\":\"error\",\"code\":\"" + ekranirovat(e.getSQLState()) + "\",\"msg\":\"" + ekranirovat(e.getMessage()) + "\"}");
+
             }
         }
     }
@@ -124,7 +124,7 @@ public class Main {
                 Connection c = pool.poluchit();
                 Statement st = c.createStatement();
                 st.execute("IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='students' and xtype='U') " +
-                        "CREATE TABLE students (id INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(100) NOT NULL, group_name VARCHAR(20) NOT NULL, course INT NOT NULL, grade DECIMAL(3,2), created_at DATETIME DEFAULT GETDATE())");
+
                 pool.osvobodit(c);
                 sendJson(ex, 200, "{\"status\":\"ok\",\"msg\":\"Tablitsa students sozdana\"}");
             } catch (Exception e) {
@@ -174,17 +174,7 @@ public class Main {
                 sendJson(ex, 200, sb.toString());
             } catch (Exception e) {
                 sendJson(ex, 500, "{\"status\":\"error\",\"msg\":\"" + ekranirovat(e.getMessage()) + "\"}");
-            }
-        }
-    }
 
-    static class Task2UpdateHandler implements HttpHandler {
-        public void handle(HttpExchange ex) throws IOException {
-            try {
-                Connection c = pool.poluchit();
-                PreparedStatement ps = c.prepareStatement("UPDATE students SET grade = ? WHERE name = ?");
-                ps.setDouble(1, 4.5);
-                ps.setString(2, "Ivanov Ivan");
                 int affected = ps.executeUpdate();
                 pool.osvobodit(c);
                 sendJson(ex, 200, "{\"status\":\"ok\",\"affected\":" + affected + "}");
@@ -194,35 +184,6 @@ public class Main {
         }
     }
 
-    static class Task2DeleteHandler implements HttpHandler {
-        public void handle(HttpExchange ex) throws IOException {
-            try {
-                Connection c = pool.poluchit();
-                PreparedStatement ps = c.prepareStatement("DELETE FROM students WHERE name = 'Ivanov Ivan'");
-                int affected = ps.executeUpdate();
-                pool.osvobodit(c);
-                sendJson(ex, 200, "{\"status\":\"ok\",\"affected\":" + affected + "}");
-            } catch (Exception e) {
-                sendJson(ex, 500, "{\"status\":\"error\",\"msg\":\"" + ekranirovat(e.getMessage()) + "\"}");
-            }
-        }
-    }
-
-    static class Task2InjectionHandler implements HttpHandler {
-        public void handle(HttpExchange ex) throws IOException {
-            try {
-                Connection c = pool.poluchit();
-                String opasnayaStroka = "' OR '1'='1";
-                Statement st = c.createStatement();
-                ResultSet rs = st.executeQuery("SELECT name FROM students WHERE name = '" + opasnayaStroka + "'");
-                int count = 0;
-                while(rs.next()) count++;
-
-                PreparedStatement ps = c.prepareStatement("SELECT name FROM students WHERE name = ?");
-                ps.setString(1, opasnayaStroka);
-                ResultSet rsSafe = ps.executeQuery();
-                int countSafe = 0;
-                while(rsSafe.next()) countSafe++;
 
                 pool.osvobodit(c);
                 sendJson(ex, 200, "{\"status\":\"ok\",\"unsafe_count\":" + count + ",\"safe_count\":" + countSafe + ",\"msg\":\"Parametrizovanniy zapros bezopasen\"}");
@@ -238,17 +199,6 @@ public class Main {
             try {
                 DriverManager.getConnection("jdbc:sqlserver://localhost:9999;databaseName=db;encrypt=false;", "u", "p");
             } catch (SQLException e) { errors.put("ECONNREFUSED", ekranirovat(e.getSQLState()) + ": " + ekranirovat(e.getMessage())); }
-
-            try {
-                Connection c = pool.poluchit();
-                c.createStatement().executeQuery("SELECT * FRM students");
-            } catch (SQLException e) { errors.put("SYNTAX_ERROR", ekranirovat(e.getSQLState()) + ": " + ekranirovat(e.getMessage())); }
-
-            try {
-                Connection c = pool.poluchit();
-                c.createStatement().execute("INSERT INTO students (id, name, group_name, course) VALUES (1, 'Test', '477', 1)");
-                c.createStatement().execute("INSERT INTO students (id, name, group_name, course) VALUES (1, 'Test', '477', 1)");
-            } catch (SQLException e) { errors.put("DUP_ENTRY", ekranirovat(e.getSQLState()) + ": " + ekranirovat(e.getMessage())); }
 
             sendJson(ex, 200, "{\"status\":\"ok\",\"errors\":" + mapaVJson(errors) + "}");
         }
@@ -266,7 +216,6 @@ public class Main {
                     count++;
                 }
                 pool.osvobodit(c);
-                sendJson(ex, 200, "{\"status\":\"ok\",\"streamed_rows\":" + count + ",\"msg\":\"Cherez ResultSet (stream analog)\"}");
             } catch (Exception e) {
                 sendJson(ex, 500, "{\"status\":\"error\",\"msg\":\"" + ekranirovat(e.getMessage()) + "\"}");
             }
@@ -286,11 +235,7 @@ public class Main {
                 c.commit();
                 sendJson(ex, 200, "{\"status\":\"ok\",\"msg\":\"Transaction committed\"}");
             } catch (Exception e) {
-                try { if (c != null) c.rollback(); } catch (SQLException exRoll) { exRoll.printStackTrace(); }
-                sendJson(ex, 500, "{\"status\":\"error\",\"msg\":\"Rollback: " + ekranirovat(e.getMessage()) + "\"}");
-            } finally {
-                if (c != null) {
-                    try { c.setAutoCommit(true); } catch (SQLException exAuto) { exAuto.printStackTrace(); }
+
                     pool.osvobodit(c);
                 }
             }
@@ -309,11 +254,7 @@ public class Main {
                 ps2.executeUpdate();
                 c.commit();
             } catch (Exception e) {
-                try { if (c != null) c.rollback(); } catch (SQLException exRoll) { exRoll.printStackTrace(); }
-                sendJson(ex, 200, "{\"status\":\"ok\",\"msg\":\"Transaction rolled back due to error: " + ekranirovat(e.getMessage()) + "\"}");
-            } finally {
-                if (c != null) {
-                    try { c.setAutoCommit(true); } catch (SQLException exAuto) { exAuto.printStackTrace(); }
+
                     pool.osvobodit(c);
                 }
             }
